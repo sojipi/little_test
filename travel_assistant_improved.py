@@ -8,8 +8,18 @@ from PIL import Image
 from io import BytesIO
 import re
 
+# 禁用Gradio分析功能
+import os
+os.environ['GRADIO_ANALYTICS_ENABLED'] = '0'
+
 # 从环境变量读取API配置（更安全）
-API_KEY = "ms-b064f11b-4b11-4ae0-a00e-ff98a69c9bd3"
+import os
+from dotenv import load_dotenv
+
+# 加载.env文件中的环境变量
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
 BASE_URL = "https://api-inference.modelscope.cn/v1/"
 MODEL_NAME = "deepseek-ai/DeepSeek-V3.2-Exp"
 
@@ -767,12 +777,12 @@ def create_app():
 
 if __name__ == "__main__":
     print("正在启动银发族智能旅行助手...")
-    print("请在浏览器中访问: http://localhost:7860")
+    print("请在浏览器中访问: http://localhost:7861")
     print("按 Ctrl+C 停止服务")
     app = create_app()
     app.launch(
         server_name="0.0.0.0",
-        server_port=7860,
+        server_port=7861,
         inbrowser=True,
         share=False,
         show_error=True
