@@ -1,0 +1,74 @@
+# 虚拟环境
+venv/
+
+# Python临时文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PIPFILE.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志文件
+*.log
+logs/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 测试覆盖率
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+
+# 操作系统文件
+Thumbs.db
+
+# 打包文件
+*.tar.gz
+*.zip
+
+# 其他
+*.pid
+*.seed
+*.pid.lock
