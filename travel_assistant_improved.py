@@ -7,6 +7,10 @@ import requests
 from PIL import Image
 from io import BytesIO
 import re
+import moviepy as mp
+from moviepy import ImageClip, concatenate_videoclips
+import tempfile
+from pathlib import Path
 
 # 禁用Gradio分析功能
 import os
@@ -436,6 +440,50 @@ def format_checklist_output(checklist_id, destination, duration, data):
 
     return html
 
+def generate_video_story(images, text_description):
+    """根据图片和文字描述生成旅游视频"""
+    if not images:
+        return "请上传至少一张图片"
+    if not text_description:
+        return "请输入文字描述"
+
+    try:
+        # 创建临时目录
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir = Path(temp_dir)
+            
+            # 保存上传的图片
+            image_clips = []
+            for i, image in enumerate(images):
+                # 读取图片
+                img = Image.open(image)
+                # 调整图片大小以适应视频
+                img = img.resize((1920, 1080))
+                # 保存到临时目录
+                img_path = temp_dir / f"image_{i}.jpg"
+                img.save(img_path)
+                # 创建ImageClip，每张图片显示3秒
+                clip = ImageClip(str(img_path)).set_duration(3)
+                image_clips.append(clip)
+
+            # 合并图片剪辑
+            video_clip = concatenate_videoclips(image_clips, method="compose")
+
+            # 保存最终视频
+            output_path = temp_dir / "travel_video.mp4"
+            video_clip.write_videofile(str(output_path), codec="libx264", fps=24)
+
+            # 关闭所有剪辑
+            video_clip.close()
+            for clip in image_clips:
+                clip.close()
+
+            # 返回视频路径
+            return str(output_path)
+
+    except Exception as e:
+        return f"生成视频时出错：{str(e)}"
+
 
 def create_app():
     """创建Gradio应用"""
@@ -476,150 +524,180 @@ def create_app():
         </p>
         ''')
 
-        # 主界面：单Tab设计
-        with gr.Row():
-            with gr.Column(scale=1):
-                gr.HTML('''
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 15px; margin-bottom: 20px; text-align: center;">
-                    <h2 style="margin: 0; font-size: 32px;">🌟 目的地推荐</h2>
-                    <p style="margin: 10px 0 0 0; font-size: 16px;">根据您的需求智能推荐适合的旅行目的地</p>
-                </div>
-                ''')
-
-                season = gr.Dropdown(
-                    ["春季", "夏季", "秋季", "冬季"],
-                    label="🌸 季节",
-                    value="秋季",
-                    info="选择您计划出行的季节"
-                )
-                health = gr.Dropdown(
-                    ["身体健康", "有慢性病但控制良好", "行动不便但可独立出行"],
-                    label="🏥 健康状况",
-                    value="身体健康",
-                    info="真实反映您的健康状况，便于推荐更合适的目的地"
-                )
-                budget = gr.Dropdown(
-                    ["经济实惠", "舒适型", "豪华型"],
-                    label="💰 预算范围",
-                    value="舒适型",
-                    info="选择您的预算档次"
-                )
-                interests = gr.CheckboxGroup(
-                    choices=interest_options,
-                    value=["避寒康养", "温泉养生"],
-                    label="🎨 兴趣偏好",
-                    info="可选择多个您感兴趣的主题"
-                )
-                btn1 = gr.Button("🔍 推荐目的地", variant="primary", size="lg")
-                output1 = gr.Textbox(
-                    label="✨ 推荐结果",
-                    lines=15,
-                    max_lines=25,
-                    info="系统将为您推荐3-5个适合的目的地"
-                )
-
-            with gr.Column(scale=1):
-                gr.HTML('''
-                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 25px; border-radius: 15px; margin-bottom: 20px; text-align: center;">
-                    <h2 style="margin: 0; font-size: 32px;">📋 行程规划</h2>
-                    <p style="margin: 10px 0 0 0; font-size: 16px;">为您量身定制舒缓贴心的旅行行程</p>
-                </div>
-                ''')
-
-                dest = gr.Textbox(
-                    label="📍 目的地",
-                    info="填写您想去或已选择的目的地"
-                )
-                dur = gr.Dropdown(
-                    ["3-5天", "一周左右", "10-15天", "15天以上"],
-                    label="⏰ 旅行时长",
-                    value="一周左右"
-                )
-                mobility = gr.Dropdown(
-                    ["行走自如", "需要少量休息", "需要轮椅辅助"],
-                    label="🚶 行动能力",
-                    value="行走自如"
-                )
-                health_focus = gr.CheckboxGroup(
-                    choices=health_focus_options,
-                    value=["避免过度疲劳", "饮食清淡", "定期休息"],
-                    label="❤️ 健康关注点",
-                    info="可选择多个您的健康关注点"
-                )
-                btn2 = gr.Button("📋 制定行程", variant="primary", size="lg")
-                output2 = gr.Textbox(
-                    label="✨ 行程安排",
-                    lines=15,
-                    max_lines=25,
-                    info="为您量身定制的舒缓行程安排"
-                )
-
-        # 分割线
-        gr.HTML('''
-        <div style="margin: 40px 0; border-top: 3px solid #e0e0e0;"></div>
-        ''')
-
-        # 旅行清单部分
-        with gr.Row():
-            with gr.Column():
-                gr.HTML('''
-                <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 30px; border-radius: 15px; margin-bottom: 20px; text-align: center;">
-                    <h2 style="margin: 0; font-size: 32px;">🎁 旅行清单</h2>
-                    <p style="margin: 10px 0 0 0; font-size: 16px;">生成专属的行前准备清单，让旅行更轻松</p>
-                </div>
-                ''')
-
-                gr.HTML('''
-                <div style="padding: 20px; background: #e3f2fd; border-radius: 10px; margin-bottom: 20px; border-left: 5px solid #2196f3;">
-                    <p style="color: #1565c0; font-size: 15px; margin: 0; line-height: 1.8;">
-                        💡 <strong>智能填充：</strong>如果您刚完成行程规划，清单生成时会自动使用您刚才填写的目的地和时长信息！
-                    </p>
-                </div>
-                ''')
-
+        # 创建Tab组件
+        with gr.Tabs():
+            # 旅行规划Tab
+            with gr.TabItem("旅行规划"):
+                # 主界面：双列布局
                 with gr.Row():
                     with gr.Column(scale=1):
-                        checklist_origin = gr.Textbox(
-                            label="🏠 出发地",
-                            value="",
-                            info="填写您的出发城市（例如：北京、上海、广州等）"
+                        gr.HTML('''
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 15px; margin-bottom: 20px; text-align: center;">
+                            <h2 style="margin: 0; font-size: 32px;">🌟 目的地推荐</h2>
+                            <p style="margin: 10px 0 0 0; font-size: 16px;">根据您的需求智能推荐适合的旅行目的地</p>
+                        </div>
+                        ''')
+
+                        season = gr.Dropdown(
+                            ["春季", "夏季", "秋季", "冬季"],
+                            label="🌸 季节",
+                            value="秋季",
+                            info="选择您计划出行的季节"
                         )
-                        checklist_dest = gr.Textbox(
-                            label="📍 目的地",
-                            value="",
-                            placeholder="（例如：北京、普陀山、杭州等）",
-                            info="填写目的地"
+                        health = gr.Dropdown(
+                            ["身体健康", "有慢性病但控制良好", "行动不便但可独立出行"],
+                            label="🏥 健康状况",
+                            value="身体健康",
+                            info="真实反映您的健康状况，便于推荐更合适的目的地"
+                        )
+                        budget = gr.Dropdown(
+                            ["经济实惠", "舒适型", "豪华型"],
+                            label="💰 预算范围",
+                            value="舒适型",
+                            info="选择您的预算档次"
+                        )
+                        interests = gr.CheckboxGroup(
+                            choices=interest_options,
+                            value=["避寒康养", "温泉养生"],
+                            label="🎨 兴趣偏好",
+                            info="可选择多个您感兴趣的主题"
+                        )
+                        btn1 = gr.Button("🔍 推荐目的地", variant="primary", size="lg")
+                        output1 = gr.Textbox(
+                            label="✨ 推荐结果",
+                            lines=15,
+                            max_lines=25,
+                            info="系统将为您推荐3-5个适合的目的地"
                         )
 
                     with gr.Column(scale=1):
-                        checklist_dur = gr.Dropdown(
+                        gr.HTML('''
+                        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 25px; border-radius: 15px; margin-bottom: 20px; text-align: center;">
+                            <h2 style="margin: 0; font-size: 32px;">📋 行程规划</h2>
+                            <p style="margin: 10px 0 0 0; font-size: 16px;">为您量身定制舒缓贴心的旅行行程</p>
+                        </div>
+                        ''')
+
+                        dest = gr.Textbox(
+                            label="📍 目的地",
+                            info="填写您想去或已选择的目的地"
+                        )
+                        dur = gr.Dropdown(
                             ["3-5天", "一周左右", "10-15天", "15天以上"],
                             label="⏰ 旅行时长",
-                            value="一周左右",
-                            info="选择旅行时长"
+                            value="一周左右"
                         )
-                        checklist_needs = gr.Textbox(
-                            label="⚕️ 特殊需求",
-                            value="身体健康，常规旅行",
-                            info="例如：高血压、糖尿病、需携带医疗器械等"
+                        mobility = gr.Dropdown(
+                            ["行走自如", "需要少量休息", "需要轮椅辅助"],
+                            label="🚶 行动能力",
+                            value="行走自如"
+                        )
+                        health_focus = gr.CheckboxGroup(
+                            choices=health_focus_options,
+                            value=["避免过度疲劳", "饮食清淡", "定期休息"],
+                            label="❤️ 健康关注点",
+                            info="可选择多个您的健康关注点"
+                        )
+                        btn2 = gr.Button("📋 制定行程", variant="primary", size="lg")
+                        output2 = gr.Textbox(
+                            label="✨ 行程安排",
+                            lines=15,
+                            max_lines=25,
+                            info="为您量身定制的舒缓行程安排"
                         )
 
-                # Loading输出
-                output3_loading = gr.HTML(value="")
-                btn3 = gr.Button("🎯 生成专属清单", variant="primary", size="lg")
-                output3 = gr.HTML(
-                    label="✨ 清单内容",
-                    value="""
-                    <div style="padding: 60px 40px; background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border-radius: 15px; text-align: center; border: 2px dashed #9c27b0;">
-                        <div style="font-size: 64px; margin-bottom: 20px;">📋</div>
-                        <h3 style="color: #6a1b9a; margin: 0 0 15px 0; font-size: 24px;">旅行清单尚未生成</h3>
-                        <p style="color: #7b1fa2; margin: 0; font-size: 16px; line-height: 1.8;">
-                            填写好目的地、旅行时长和特殊需求后，点击"生成专属清单"按钮<br/>
-                            AI将为您生成详细的行前准备清单
-                        </p>
-                    </div>
-                    """
+                # 分割线
+                gr.HTML('''
+                <div style="margin: 40px 0; border-top: 3px solid #e0e0e0;"></div>
+                ''')
+
+                # 旅行清单部分
+                with gr.Row():
+                    with gr.Column():
+                        gr.HTML('''
+                        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 30px; border-radius: 15px; margin-bottom: 20px; text-align: center;">
+                            <h2 style="margin: 0; font-size: 32px;">🎁 旅行清单</h2>
+                            <p style="margin: 10px 0 0 0; font-size: 16px;">生成专属的行前准备清单，让旅行更轻松</p>
+                        </div>
+                        ''')
+
+                        gr.HTML('''
+                        <div style="padding: 20px; background: #e3f2fd; border-radius: 10px; margin-bottom: 20px; border-left: 5px solid #2196f3;">
+                            <p style="color: #1565c0; font-size: 15px; margin: 0; line-height: 1.8;">
+                                💡 <strong>智能填充：</strong>如果您刚完成行程规划，清单生成时会自动使用您刚才填写的目的地和时长信息！
+                            </p>
+                        </div>
+                        ''')
+
+                        with gr.Row():
+                            with gr.Column(scale=1):
+                                checklist_origin = gr.Textbox(
+                                    label="🏠 出发地",
+                                    value="",
+                                    info="填写您的出发城市（例如：北京、上海、广州等）"
+                                )
+                                checklist_dest = gr.Textbox(
+                                    label="📍 目的地",
+                                    value="",
+                                    placeholder="（例如：北京、普陀山、杭州等）",
+                                    info="填写目的地"
+                                )
+
+                            with gr.Column(scale=1):
+                                checklist_dur = gr.Dropdown(
+                                    ["3-5天", "一周左右", "10-15天", "15天以上"],
+                                    label="⏰ 旅行时长",
+                                    value="一周左右",
+                                    info="选择旅行时长"
+                                )
+                                checklist_needs = gr.Textbox(
+                                    label="⚕️ 特殊需求",
+                                    value="身体健康，常规旅行",
+                                    info="例如：高血压、糖尿病、需携带医疗器械等"
+                                )
+
+                        # Loading输出
+                        output3_loading = gr.HTML(value="")
+                        btn3 = gr.Button("🎯 生成专属清单", variant="primary", size="lg")
+                        output3 = gr.HTML(
+                            label="✨ 清单内容",
+                            value="""
+                            <div style="padding: 60px 40px; background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border-radius: 15px; text-align: center; border: 2px dashed #9c27b0;">
+                                <div style="font-size: 64px; margin-bottom: 20px;">📋</div>
+                                <h3 style="color: #6a1b9a; margin: 0 0 15px 0; font-size: 24px;">旅行清单尚未生成</h3>
+                                <p style="color: #7b1fa2; margin: 0; font-size: 16px; line-height: 1.8;">
+                                    填写好目的地、旅行时长和特殊需求后，点击"生成专属清单"按钮<br/>
+                                    AI将为您生成详细的行前准备清单
+                                </p>
+                            </div>
+                            """
+                        )
+
+            # 视频生成Tab
+            with gr.TabItem("旅游视频生成"):
+                gr.HTML('''
+                <div style="background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%); color: white; padding: 30px; border-radius: 15px; margin-bottom: 20px; text-align: center;">
+                    <h2 style="margin: 0; font-size: 32px;">🎬 旅游视频生成</h2>
+                    <p style="margin: 10px 0 0 0; font-size: 16px;">上传旅行照片和文字描述，生成精彩的旅游视频</p>
+                </div>
+                ''')
+
+                # 图片上传
+                image_upload = gr.File(file_count="multiple", file_types=["image"], label="📸 上传旅行照片")
+
+                # 文字描述
+                text_description = gr.Textbox(
+                    label="✍️ 旅行描述",
+                    lines=5,
+                    placeholder="请描述您的旅行经历，例如：这是我在云南丽江的旅行，看到了美丽的玉龙雪山和古老的丽江古城...",
+                    info="请简要描述您的旅行经历"
                 )
+
+                # 生成视频按钮
+                btn4 = gr.Button("🎬 生成旅游视频", variant="primary", size="lg")
+
+                # 视频输出
+                video_output = gr.Video(label="🎥 生成的旅游视频")
 
         # 事件绑定
         def show_loading():
@@ -763,6 +841,13 @@ def create_app():
             outputs=[output3_loading]
         )
 
+        # 视频生成按钮事件绑定
+        btn4.click(
+            fn=generate_video_story,
+            inputs=[image_upload, text_description],
+            outputs=[video_output]
+        )
+
         # 添加底部说明
         gr.HTML('''
         <div style="text-align:center; margin-top:30px; padding:20px; background:#f5f5f5; border-radius:10px;">
@@ -777,12 +862,12 @@ def create_app():
 
 if __name__ == "__main__":
     print("正在启动银发族智能旅行助手...")
-    print("请在浏览器中访问: http://localhost:7861")
+    print("请在浏览器中访问: http://localhost:7862")
     print("按 Ctrl+C 停止服务")
     app = create_app()
     app.launch(
         server_name="0.0.0.0",
-        server_port=7861,
+        server_port=7862,
         inbrowser=True,
         share=False,
         show_error=True
