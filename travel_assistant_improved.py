@@ -487,27 +487,14 @@ def generate_travel_video(images, description):
                 script += answer_chunk
         script = clean_response(script)
 
-        # 第二步：生成视频（模拟实际视频生成过程）
-        # 由于实际视频生成需要复杂的处理和模型，这里我们使用模拟的方式
-        # 在实际应用中，您可以使用modelscope上的视频生成模型
-        
-        # 模拟视频生成过程
-        import time
-        time.sleep(5)  # 模拟视频生成时间
-        
-        # 生成模拟视频文件路径
-        import os
-        video_path = "travel_video.mp4"
-        return f"视频生成成功！视频路径：{video_path}"
-        
-        # 第三步：返回结果，包含文案脚本和视频下载链接
+        # 第二步：返回结果，包含文案脚本和视频生成说明
         result = f"""🎬 旅游视频生成完成！
 
 📝 视频文案脚本：
 {script}
 
 💡 视频生成说明：
-- 已成功生成 {len(images)} 张图片的旅游视频
+- 已成功生成 {len(images)} 张图片的旅游视频文案
 - 视频时长约 {len(images)*8} 秒
 - 建议使用 "轻音乐" 或 "自然音效" 作为背景音乐
 
