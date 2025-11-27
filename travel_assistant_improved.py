@@ -455,8 +455,18 @@ def generate_video_story(images, text_description):
             # 保存上传的图片
             image_clips = []
             for i, image in enumerate(images):
+                # 处理Gradio 4.x版本中File组件返回的字典对象
+                if isinstance(image, dict):
+                    # 从字典中获取文件路径
+                    image_path = image.get("path")
+                    if not image_path:
+                        continue
+                else:
+                    # 旧版本Gradio返回的是文件路径字符串
+                    image_path = image
+                
                 # 读取图片
-                img = Image.open(image)
+                img = Image.open(image_path)
                 # 调整图片大小以适应视频
                 img = img.resize((1920, 1080))
                 # 保存到临时目录
@@ -869,6 +879,6 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=7862,
         inbrowser=True,
-        share=False,
+        share=True,
         show_error=True
     )
