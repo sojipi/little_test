@@ -453,7 +453,7 @@ def generate_video_story(images, text_description):
             temp_dir = Path(temp_dir)
             
             # 保存上传的图片
-            image_clips = []
+            image_paths = []
             for i, image in enumerate(images):
                 # 处理Gradio 4.x版本中File组件返回的字典对象
                 if isinstance(image, dict):
@@ -472,19 +472,41 @@ def generate_video_story(images, text_description):
                 # 保存到临时目录
                 img_path = temp_dir / f"image_{i}.jpg"
                 img.save(img_path)
-                # 创建ImageClip，每张图片显示3秒
-                clip = ImageClip(str(img_path)).set_duration(3)
+                image_paths.append(str(img_path))
+
+            # 调用modelscope上的视频生成模型
+            from modelscope.pipelines import pipeline
+            from modelscope.outputs import OutputKeys
+            
+            # 使用text-to-video-synthesis模型
+            pipe = pipeline('text-to-video-synthesis', model='damo/text-to-video-synthesis')
+            
+            # 生成视频
+            result = pipe(text_description)
+            video_path = result[OutputKeys.OUTPUT_VIDEO]
+            
+            # 将生成的视频与上传的图片合并
+            from moviepy.editor import VideoFileClip, concatenate_videoclips
+            
+            # 加载生成的视频
+            generated_clip = VideoFileClip(video_path)
+            
+            # 创建图片剪辑
+            image_clips = []
+            for img_path in image_paths:
+                clip = ImageClip(img_path).set_duration(3)
                 image_clips.append(clip)
-
-            # 合并图片剪辑
-            video_clip = concatenate_videoclips(image_clips, method="compose")
-
+            
+            # 合并所有剪辑
+            final_clip = concatenate_videoclips(image_clips + [generated_clip], method="compose")
+            
             # 保存最终视频
             output_path = temp_dir / "travel_video.mp4"
-            video_clip.write_videofile(str(output_path), codec="libx264", fps=24)
+            final_clip.write_videofile(str(output_path), codec="libx264", fps=24)
 
             # 关闭所有剪辑
-            video_clip.close()
+            final_clip.close()
+            generated_clip.close()
             for clip in image_clips:
                 clip.close()
 
