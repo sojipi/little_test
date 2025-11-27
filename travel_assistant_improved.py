@@ -870,8 +870,9 @@ def create_app():
 
                 with gr.Row():
                     with gr.Column(scale=1):
-                        images = gr.File(
-                            label="📷 上传旅行照片"
+                        images = gr.Textbox(
+                            label="📷 上传旅行照片",
+                            placeholder="请输入照片的URL地址，多个地址用逗号分隔"
                         )
                         description = gr.Textbox(
                             label="✍️ 旅行描述",
@@ -922,12 +923,12 @@ def create_app():
 
 if __name__ == "__main__":
     print("正在启动银发族智能旅行助手...")
-    print("请在浏览器中访问: http://localhost:7861")
+    print("请在浏览器中访问: http://localhost:7862")
     print("按 Ctrl+C 停止服务")
     app = create_app()
     app.launch(
         server_name="0.0.0.0",
-        server_port=7861,
+        server_port=7862,
         inbrowser=True,
         share=False,
         show_error=True
